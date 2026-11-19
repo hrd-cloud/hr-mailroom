@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Mailroom — Pencatatan & Generator Nomor Surat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between py-4 gap-4">
+                <!-- Brand Title -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                        <i data-lucide="file-signature" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-slate-900 tracking-tight">HR Mailroom</h1>
+                            <span id="header-sync-pill" class="px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 rounded-full">Lokal / CSV</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Sistem Generator & Induk Pencatatan Nomor Surat All Entitas</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto">
+                    <button onclick="switchTab('generator')" id="tab-btn-generator" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap bg-white text-brand-600 shadow-sm">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <span>Generator & Input</span>
+                    </button>
+                    <button onclick="switchTab('register')" id="tab-btn-register" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>Buku Register</span>
+                        <span id="badge-total-surat" class="px-1.5 py-0.5 text-[10px] rounded-full bg-slate-200 text-slate-700 font-bold">0</span>
+                    </button>
+                    <button onclick="switchTab('masterlist')" id="tab-btn-masterlist" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                        <span>Masterlist & Kelompok</span>
+                    </button>
+                    <button onclick="switchTab('sync')" id="tab-btn-sync" class="tab-btn flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap">
+                        <i data-lucide="sheet" class="w-4 h-4"></i>
+                        <span>Koneksi Sheets</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ========================================================= -->
+        <!-- TAB 1: GENERATOR & INPUT SURAT BARU                       -->
+        <!-- ========================================================= -->
+        <section id="view-generator" class="tab-view space-y-6">
+            
+            <!-- Quick Stats Banner -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-medium text-slate-500">Total Surat Tercatat</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <span id="stat-total" class="text-2xl font-bold text-slate-900">0</span>
+                        <span class="text-xs text-slate-400">Semua Tahun</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-medium text-slate-500">Surat Tahun 2027</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <span id="stat-2027" class="text-2xl font-bold text-brand-600">0</span>
+                        <span class="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">Target Baru</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-medium text-slate-500">Arsip Tahun 2026</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <span id="stat-2026" class="text-2xl font-bold text-slate-700">0</span>
+                        <span class="text-xs text-slate-400">Tersimpan</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                    <div class="text-xs font-medium text-slate-500">Master Kode Jenis</div>
+                    <div class="mt-1 flex items-baseline justify-between">
+                        <span id="stat-codes" class="text-2xl font-bold text-emerald-600">0</span>
+                        <span class="text-xs text-slate-400">SK, Sket, ST, dll</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Left Column: Form Builder (7 cols) -->
+                <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-base font-bold text-slate-900">Buat Nomor Surat Baru</h2>
+                            <p class="text-xs text-slate-500">Format otomatis menyesuaikan kategori & kode belakang surat</p>
+                        </div>
+                        <button type="button" onclick="resetFormToDefaults()" class="text-xs font-medium text-slate-500 hover:text-brand-600 flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                            <span>Reset</span>
+                        </button>
+                    </div>
+
+                    <form id="letter-form" onsubmit="handleSaveLetter(event)" class="p-6 space-y-5">
+                        
+                        <!-- Step 1: Pilih Pola Struktur Surat -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">1. Pola Struktur Nomor</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="patternType" value="ADMIN" checked onchange="handlePatternChange()" class="peer sr-only">
+                                    <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-brand-600 peer-checked:bg-brand-50/60 hover:bg-slate-50 transition-all">
+                                        <div class="text-xs font-bold text-slate-900">Surat HR & Umum</div>
+                                        <div class="text-[11px] text-slate-500 mt-0.5 font-mono">A.01/HRD/ENT/Kode/Bln/Thn</div>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="patternType" value="KONTRAK_KARYAWAN" onchange="handlePatternChange()" class="peer sr-only">
+                                    <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-brand-600 peer-checked:bg-brand-50/60 hover:bg-slate-50 transition-all">
+                                        <div class="text-xs font-bold text-slate-900">Kontrak Karyawan</div>
+                                        <div class="text-[11px] text-slate-500 mt-0.5 font-mono">A.01/PKWT/HLD/ENT/Bln/Thn</div>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="patternType" value="KONTRAK_FREELANCE" onchange="handlePatternChange()" class="peer sr-only">
+                                    <div class="p-3 rounded-xl border border-slate-200 peer-checked:border-brand-600 peer-checked:bg-brand-50/60 hover:bg-slate-50 transition-all">
+                                        <div class="text-xs font-bold text-slate-900">Kontrak Freelance</div>
+                                        <div class="text-[11px] text-slate-500 mt-0.5 font-mono">B.01/SPK/ENT/DIV/Bln/Thn</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Kode Awal (A/B) & Kategori Induk -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Kode Awal (Peruntukan)</label>
+                                <select id="inp-prefix" onchange="updateGenerator()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                    <option value="A">A — Internal / Karyawan Perusahaan</option>
+                                    <option value="B">B — Eksternal / Luar RWE & Semesta</option>
+                                </select>
+                            </div>
+
+                            <div id="wrap-category">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-semibold text-slate-700">Kelompok Surat</label>
+                                    <button type="button" onclick="switchTab('masterlist')" class="text-[11px] font-medium text-brand-600 hover:underline cursor-pointer">+ Kelompok Baru</button>
+                                </div>
+                                <select id="inp-category" onchange="handleCategoryChange()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                    <!-- Populated dynamically from masterGroups -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Kode Jenis Surat (Kode Belakang) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs font-semibold text-slate-700">Jenis Surat & Kode Belakang</label>
+                                <button type="button" onclick="switchTab('masterlist')" class="text-[11px] font-medium text-brand-600 hover:underline cursor-pointer">+ Tambah Kode Baru di Masterlist</button>
+                            </div>
+                            <select id="inp-code" onchange="handleCodeSelection()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                            <p id="code-description-hint" class="mt-1.5 text-xs text-slate-500 flex items-center gap-1.5">
+                                <i data-lucide="info" class="w-3.5 h-3.5 text-brand-500 shrink-0"></i>
+                                <span>Keterangan fungsi surat akan muncul di sini.</span>
+                            </p>
+                        </div>
+
+                        <!-- Step 4: Divisi, Holding (Conditional), & Entitas -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div id="wrap-division">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Divisi Pengeluar</label>
+                                <input type="text" id="inp-division" list="list-divisions" value="HRD" oninput="updateGenerator()" placeholder="Contoh: HRD" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                <datalist id="list-divisions"></datalist>
+                            </div>
+
+                            <div id="wrap-holding" class="hidden">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Holding / Induk</label>
+                                <input type="text" id="inp-holding" list="list-holdings" value="RWE" oninput="updateGenerator()" placeholder="Contoh: RWE / SMST" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                <datalist id="list-holdings">
+                                    <option value="RWE">
+                                    <option value="SMST">
+                                    <option value="SEMESTA">
+                                </datalist>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Entitas / Perusahaan</label>
+                                <input type="text" id="inp-entity" list="list-entities" value="EVO" oninput="updateGenerator()" placeholder="Pilih atau ketik entitas..." class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                <datalist id="list-entities"></datalist>
+                            </div>
+                        </div>
+
+                        <!-- Step 5: Tanggal Surat & Pengaturan Nomor Urut -->
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 pt-1">
+                            <div class="sm:col-span-5">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tanggal Surat</label>
+                                <input type="date" id="inp-date" onchange="calculateNextSequence()" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                            </div>
+
+                            <div class="sm:col-span-7">
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">No. Urut Otomatis (Reset 01 / Jenis / Tahun)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="inp-seq" oninput="updateGenerator()" value="01" class="w-28 rounded-xl border border-slate-300 bg-slate-50 font-mono font-bold text-center px-3 py-2.5 text-sm text-brand-700 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                    <button type="button" onclick="calculateNextSequence()" title="Hitung ulang nomor urut otomatis" class="px-3 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer">
+                                        <i data-lucide="wand-2" class="w-3.5 h-3.5 text-brand-600"></i>
+                                        <span>Auto Urut</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Conditional Kontrak Dates -->
+                        <div id="wrap-contract-dates" class="hidden grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Mulai (Join Date)</label>
+                                <input type="date" id="inp-start-date" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Berakhir (End Date)</label>
+                                <input type="date" id="inp-end-date" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-brand-500">
+                            </div>
+                        </div>
+
+                        <!-- Step 6: Detail Penerima & Perihal -->
+                        <div class="border-t border-slate-100 pt-4 space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Karyawan / Penerima <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="inp-recipient" required placeholder="Contoh: Anggita Mariska" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Keterangan / Perihal <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="inp-subject" required placeholder="Contoh: Mutasi HR GA ke RWE" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Catatan Tambahan (Notes)</label>
+                                <input type="text" id="inp-notes" placeholder="Opsional: PIC pembuat, status tanda tangan, atau referensi..." class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Link Draft / File Dokumen (Opsional)</label>
+                                <input type="url" id="inp-doc-link" placeholder="https://docs.google.com/document/d/... atau link file surat" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                            <button type="submit" id="btn-submit-letter" class="w-full sm:flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm">
+                                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                <span>Simpan Nomor Surat</span>
+                            </button>
+                            <button type="button" onclick="copyGeneratedNumber()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-xs sm:text-sm">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                                <span>Salin Nomor</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right Column: Live Preview & Context Helper (5 cols) -->
+                <div class="lg:col-span-5 space-y-5 lg:sticky lg:top-24">
+                    
+                    <!-- Live Preview Card -->
+                    <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Live Preview Nomor Surat
+                            </span>
+                            <span id="preview-year-badge" class="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30">2027</span>
+                        </div>
+
+                        <!-- Generated Number Box -->
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 my-2 flex items-center justify-between gap-3">
+                            <code id="live-preview-number" class="font-mono text-base sm:text-lg font-bold text-emerald-400 break-all select-all">A.01/HRD/EVO/SK-LP/I/2027</code>
+                            <button type="button" onclick="copyGeneratedNumber()" title="Salin Nomor Surat" class="shrink-0 p-2.5 rounded-lg bg-slate-800 hover:bg-brand-600 text-slate-200 hover:text-white transition-colors cursor-pointer">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Duplicate Warning Alert -->
+                        <div id="duplicate-warning" class="hidden mt-3 p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+                            <div>
+                                <span class="font-semibold">Perhatian:</span> Nomor surat ini sudah pernah tercatat di Buku Register. Sesuaikan nomor urut jika tidak ingin ganda.
+                            </div>
+                        </div>
+
+                        <!-- Breakdown Segmen -->
+                        <div class="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-3 gap-2 text-center">
+                            <div class="bg-slate-800/50 rounded-lg p-2">
+                                <div class="text-[10px] text-slate-400">Bulan Romawi</div>
+                                <div id="seg-roman" class="text-xs font-mono font-bold text-white mt-0.5">I</div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded-lg p-2">
+                                <div class="text-[10px] text-slate-400">Kode Belakang</div>
+                                <div id="seg-code" class="text-xs font-mono font-bold text-brand-300 mt-0.5">SK-LP</div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded-lg p-2">
+                                <div class="text-[10px] text-slate-400">Urutan Ke-</div>
+                                <div id="seg-seq" class="text-xs font-mono font-bold text-emerald-300 mt-0.5">01</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shortcut Link Draft Google Docs Card -->
+                    <div id="draft-helper-card" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <div class="flex items-start gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="link" class="w-4 h-4"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2">
+                                    <h3 class="text-sm font-bold text-slate-900">Penyimpanan Link Draft</h3>
+                                    <span id="draft-status-pill" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Masterlist</span>
+                                </div>
+                                <p id="draft-helper-desc" class="text-xs text-slate-500 mt-1">Buka draft Google Docs jenis surat ini atau tempel link file dokumen di form input.</p>
+                                <div class="mt-3 flex flex-wrap items-center gap-2">
+                                    <a id="draft-doc-link" href="#" target="_blank" rel="noopener noreferrer" class="hidden inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 px-3.5 py-2 rounded-lg transition-colors">
+                                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                        <span>Buka Link Draft Docs</span>
+                                    </a>
+                                    <button type="button" onclick="switchTab('masterlist')" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition-colors cursor-pointer">
+                                        <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i>
+                                        <span>Atur Link di Masterlist</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mini Recent History Card -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">3 Nomor Terakhir Dibuat</h3>
+                            <button type="button" onclick="switchTab('register')" class="text-xs font-semibold text-brand-600 hover:underline cursor-pointer">Lihat Semua →</button>
+                        </div>
+                        <div id="mini-recent-list" class="space-y-2.5">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 2: BUKU REGISTER / LOG NOMOR SURAT                    -->
+        <!-- ========================================================= -->
+        <section id="view-register" class="tab-view hidden space-y-5">
+            
+            <!-- Toolbar & Filter Bar -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">Buku Register Nomor Surat Terpusat</h2>
+                        <p class="text-xs text-slate-500">Gabungan seluruh sheet SK, Sket, ST, Pengantar, dan Kontrak dalam satu tampilan pencarian cepat.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" onclick="syncFromGoogleSheets()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 text-xs font-semibold text-brand-700 transition-colors cursor-pointer">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                            <span>Tarik dari Sheets</span>
+                        </button>
+                        <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors">
+                            <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                            <span>Import CSV</span>
+                            <input type="file" accept=".csv" onchange="handleImportCSV(event)" class="hidden">
+                        </label>
+                        <button type="button" onclick="exportToCSV()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>Export CSV / Excel</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search & Multi Filters -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-2 border-t border-slate-100">
+                    <div class="lg:col-span-4 relative">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="filter-search" oninput="renderRegisterTable()" placeholder="Cari nomor surat, nama karyawan, perihal..." class="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none">
+                    </div>
+                    <div class="lg:col-span-2">
+                        <select id="filter-year" onchange="renderRegisterTable()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white outline-none focus:border-brand-500">
+                            <option value="ALL">Semua Tahun</option>
+                            <option value="2027">Tahun 2027</option>
+                            <option value="2026">Tahun 2026</option>
+                            <option value="2025">Tahun 2025</option>
+                        </select>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <select id="filter-category" onchange="renderRegisterTable()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white outline-none focus:border-brand-500">
+                            <option value="ALL">Semua Kelompok</option>
+                        </select>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <select id="filter-prefix" onchange="renderRegisterTable()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white outline-none focus:border-brand-500">
+                            <option value="ALL">Semua Kode (A & B)</option>
+                            <option value="A">Kode A (Internal)</option>
+                            <option value="B">Kode B (Eksternal)</option>
+                        </select>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <select id="filter-entity" onchange="renderRegisterTable()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white outline-none focus:border-brand-500">
+                            <option value="ALL">Semua Entitas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                <th class="py-3.5 px-4">Nomor Surat</th>
+                                <th class="py-3.5 px-4">Tanggal</th>
+                                <th class="py-3.5 px-4">Jenis / Kelompok</th>
+                                <th class="py-3.5 px-4">Entitas</th>
+                                <th class="py-3.5 px-4">Nama Karyawan / Penerima</th>
+                                <th class="py-3.5 px-4">Keterangan / Perihal</th>
+                                <th class="py-3.5 px-4 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="register-table-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="register-empty-state" class="hidden py-12 px-4 text-center">
+                    <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="inbox" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-800">Tidak ada data surat ditemukan</h3>
+                    <p class="text-xs text-slate-500 mt-1">Coba ubah filter pencarian atau buat nomor surat baru di tab Generator.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 3: INDUK DATABASE (MASTERLIST KODE, KELOMPOK & ENTITAS)-->
+        <!-- ========================================================= -->
+        <section id="view-masterlist" class="tab-view hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Master Kode Surat Table (8 cols) -->
+                <div class="lg:col-span-8 space-y-6">
+                    
+                    <!-- Daftar Kelompok Surat Utama -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Kelompok Surat Utama</h2>
+                                <p class="text-xs text-slate-500">Kelompok induk untuk mengklasifikasikan jenis surat (SK, Sket, ST, SP, Kontrak, atau kelompok baru).</p>
+                            </div>
+                        </div>
+                        <div id="master-groups-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Tabel Kode Belakang Surat -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h2 class="text-base font-bold text-slate-900">Masterlist Kode & Jenis Surat</h2>
+                                <p class="text-xs text-slate-500">Acuan kode belakang surat beserta penyimpanan link draft Google Docs</p>
+                            </div>
+                            <select id="master-filter-cat" onchange="renderMasterlistTable()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-medium bg-white outline-none">
+                                <option value="ALL">Semua Kelompok</option>
+                            </select>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                        <th class="py-3 px-4">Kode</th>
+                                        <th class="py-3 px-4">Kelompok</th>
+                                        <th class="py-3 px-4">Digunakan Untuk</th>
+                                        <th class="py-3 px-4">Link Draft</th>
+                                        <th class="py-3 px-4 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="masterlist-table-body" class="divide-y divide-slate-100 text-xs sm:text-sm">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Tambah Kelompok Baru, Tambah Kode Baru & Kelola Entitas (4 cols) -->
+                <div class="lg:col-span-4 space-y-6">
+                    
+                    <!-- Form Tambah Kelompok Utama Baru -->
+                    <div class="bg-white rounded-2xl border border-brand-200 shadow-xs p-5">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="w-2 h-2 rounded-full bg-brand-600"></span>
+                            <h3 class="text-sm font-bold text-slate-900">Tambah Kelompok Surat Baru</h3>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3.5">Buat kategori kelompok baru (misal: Berita Acara, Surat Kuasa, Memo Internal).</p>
+                        <form onsubmit="handleAddMasterGroup(event)" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kode Kelompok <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="new-group-id" required placeholder="Misal: BA / SKU" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono font-bold outline-none focus:border-brand-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Kelompok <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="new-group-name" required placeholder="Berita Acara" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs outline-none focus:border-brand-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Pola Penomoran Bawaan</label>
+                                <select id="new-group-pattern" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white outline-none focus:border-brand-500">
+                                    <option value="ADMIN">Surat HR & Umum (A.01/HRD/ENT/Kode/Bln/Thn)</option>
+                                    <option value="KONTRAK_KARYAWAN">Kontrak Karyawan (A.01/Jenis/HLD/ENT/Bln/Thn)</option>
+                                    <option value="KONTRAK_FREELANCE">Kontrak Freelance (B.01/SPK/ENT/DIV/Bln/Thn)</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer">
+                                + Tambah Kelompok Baru
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Form Tambah Kode Jenis Surat -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
+                        <h3 class="text-sm font-bold text-slate-900 mb-1">Tambah Kode Jenis Surat Baru</h3>
+                        <p class="text-xs text-slate-500 mb-3.5">Tambahkan kode surat baru ke kelompok yang ada beserta link draft-nya.</p>
+                        <form onsubmit="handleAddMasterCode(event)" class="space-y-3">
+                            <div class="grid grid-cols-2 gap-2.5">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kode Belakang <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="new-code-key" required placeholder="Misal: BA-ST" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-mono font-bold outline-none focus:border-brand-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">Kelompok</label>
+                                    <select id="new-code-cat" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white outline-none focus:border-brand-500">
+                                        <!-- Populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Fungsi / Kegunaan <span class="text-rose-500">*</span></label>
+                                <input type="text" id="new-code-desc" required placeholder="Contoh: Berita Acara Serah Terima" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs outline-none focus:border-brand-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-700 mb-1">Link Draft / Google Docs (Opsional)</label>
+                                <input type="url" id="new-code-link" placeholder="https://docs.google.com/document/d/..." class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs outline-none focus:border-brand-500">
+                            </div>
+                            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-colors cursor-pointer">
+                                + Simpan Kode & Link Draft
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Daftar Entitas Terdaftar -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
+                        <h3 class="text-sm font-bold text-slate-900 mb-1">Daftar Entitas Resmi</h3>
+                        <p class="text-xs text-slate-500 mb-3">Diseragamkan agar tidak ada penulisan ganda (misal EVO vs EVOLVE).</p>
+                        <div id="entity-tags-container" class="flex flex-wrap gap-1.5 mb-3">
+                            <!-- Populated by JS -->
+                        </div>
+                        <form onsubmit="handleAddEntity(event)" class="flex gap-2">
+                            <input type="text" id="new-entity-name" placeholder="Tambah entitas..." class="flex-1 rounded-xl border border-slate-300 px-3 py-1.5 text-xs uppercase outline-none focus:border-brand-500">
+                            <button type="submit" class="px-3 py-1.5 rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 font-semibold text-xs transition-colors cursor-pointer">Tambah</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- TAB 4: KONEKSI GOOGLE SHEETS (LIVE SYNC & SETUP)          -->
+        <!-- ========================================================= -->
+        <section id="view-sync" class="tab-view hidden space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 sm:p-8 max-w-4xl mx-auto space-y-6">
+                <div class="border-b border-slate-100 pb-5">
+                    <span class="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-bold">Integrasi Google Sheets + Apps Script</span>
+                    <h2 class="text-xl font-bold text-slate-900 mt-2">Hubungkan HR Mailroom ke Google Sheets</h2>
+                    <p class="text-sm text-slate-600 mt-1">Tempelkan URL Web App dari Google Apps Script di bawah ini agar setiap kali kamu menyimpan nomor surat di web, datanya otomatis terkirim ke Google Sheets (dan bisa ditarik kembali ke Buku Register).</p>
+                </div>
+
+                <!-- Form URL Web App -->
+                <div class="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">URL Web App Google Apps Script</label>
+                        <span id="sync-connection-status" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">Belum Terhubung</span>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2.5">
+                        <input type="url" id="inp-webhook-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs sm:text-sm font-mono outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20">
+                        <button type="button" onclick="saveWebhookUrl()" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-colors cursor-pointer shrink-0">
+                            Simpan Koneksi
+                        </button>
+                        <button type="button" onclick="syncFromGoogleSheets()" class="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold transition-colors cursor-pointer shrink-0">
+                            Tarik Data Sekarang
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500">URL disimpan secara lokal di browser kamu. Jika dikosongkan, aplikasi tetap berjalan normal memakai penyimpanan browser & Export CSV.</p>
+                </div>
+
+                <!-- 3 Langkah Singkat -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <div class="w-7 h-7 rounded-lg bg-brand-600 text-white font-bold text-xs flex items-center justify-center mb-3">1</div>
+                        <h3 class="text-sm font-bold text-slate-900">Buat Tab <code class="bg-white px-1 py-0.5 rounded border">Log_Surat</code></h3>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">Di file Google Sheets kamu, pastikan ada tab bernama <strong>Log_Surat</strong>. Baris pertama akan otomatis diberi judul kolom oleh script saat pertama kali berjalan.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <div class="w-7 h-7 rounded-lg bg-brand-600 text-white font-bold text-xs flex items-center justify-center mb-3">2</div>
+                        <h3 class="text-sm font-bold text-slate-900">Deploy Web App</h3>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">Di <strong>Extensions → Apps Script</strong>, tempel kode di bawah, klik <strong>Deploy → New deployment → Web app</strong>, pilih <em>Execute as: Me</em> dan <em>Who has access: Anyone</em>.</p>
+                    </div>
+                    <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+                        <div class="w-7 h-7 rounded-lg bg-brand-600 text-white font-bold text-xs flex items-center justify-center mb-3">3</div>
+                        <h3 class="text-sm font-bold text-slate-900">Tempel URL & Uji Coba</h3>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">Salin URL berakhiran <code class="bg-white px-1 py-0.5 rounded border">/exec</code> ke kolom di atas, klik <strong>Simpan Koneksi</strong>, lalu coba buat 1 nomor surat baru.</p>
+                    </div>
+                </div>
+
+                <!-- Code Snippet Box -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-slate-700">Kode Google Apps Script (Kirim & Tarik Data Log_Surat)</span>
+                        <button type="button" onclick="copyAppsScript()" class="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg cursor-pointer">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span>Salin Kode Script</span>
+                        </button>
+                    </div>
+                    <pre id="apps-script-code" class="bg-slate-900 text-slate-200 p-4 rounded-xl text-xs font-mono overflow-x-auto leading-relaxed">const SHEET_NAME = "Log_Surat";
+
+function getOrCreateSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow([
+      "ID",
+      "Timestamp",
+      "Nomor Surat",
+      "Tanggal Surat",
+      "Tahun",
+      "Kode Awal",
+      "Kelompok",
+      "Kode Jenis",
+      "Divisi",
+      "Entitas",
+      "Nama Penerima",
+      "Keterangan / Perihal",
+      "Notes",
+      "Link Draft"
+    ]);
+  }
+  return sheet;
+}
+
+function doPost(e) {
+  try {
+    const sheet = getOrCreateSheet_();
+    const data = JSON.parse(e.postData.contents);
+    const id = data.id || ("row-" + new Date().getTime());
+
+    sheet.appendRow([
+      id,
+      new Date().toISOString(),
+      data.fullNumber || "",
+      data.date || "",
+      data.year || "",
+      data.prefix || "",
+      data.category || "",
+      data.code || "",
+      data.division || "",
+      data.entity || "",
+      data.recipient || "",
+      data.subject || "",
+      data.notes || "",
+      data.docUrl || ""
+    ]);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "success", id: id }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    const sheet = getOrCreateSheet_();
+    const values = sheet.getDataRange().getValues();
+    if (values.length &lt;= 1) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success", logs: [] }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const logs = [];
+    for (let i = 1; i &lt; values.length; i++) {
+      const r = values[i];
+      if (!r[2]) continue;
+      const fullNum = String(r[2]);
+      const seqMatch = fullNum.match(/^[AB]\.(\d+)/i);
+      logs.push({
+        id: String(r[0] || ("gs-" + i)),
+        patternType: "ADMIN",
+        prefix: String(r[5] || "A"),
+        seq: seqMatch ? seqMatch[1] : "01",
+        division: String(r[8] || "HRD"),
+        holding: "",
+        entity: String(r[9] || "EVO"),
+        category: String(r[6] || "SK"),
+        code: String(r[7] || "SK"),
+        date: String(r[3] || "").slice(0, 10),
+        year: Number(r[4]) || 2027,
+        fullNumber: fullNum,
+        recipient: String(r[10] || "-"),
+        subject: String(r[11] || "-"),
+        notes: String(r[12] || ""),
+        docUrl: String(r[13] || "")
+      });
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "success", logs: logs.reverse() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}</pre>
+                </div>
+
+                <!-- Reset Sample Data Option -->
+                <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="text-xs text-slate-500">Ingin mengosongkan atau mereset log surat ke kondisi kosong awal 2027?</div>
+                    <button type="button" onclick="resetToInitialSeedData()" class="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors cursor-pointer">
+                        Kosongkan Log Surat (Start 2027)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-900">Edit Catatan Surat</h3>
+                <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleUpdateLetter(event)" class="p-6 space-y-4">
+                <input type="hidden" id="edit-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nomor Surat</label>
+                    <input type="text" id="edit-fullNumber" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono font-bold text-slate-900 outline-none focus:border-brand-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Tanggal Surat</label>
+                        <input type="date" id="edit-date" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm outline-none focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Entitas</label>
+                        <input type="text" id="edit-entity" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm outline-none focus:border-brand-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Karyawan / Penerima</label>
+                    <input type="text" id="edit-recipient" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm outline-none focus:border-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Keterangan / Perihal</label>
+                    <input type="text" id="edit-subject" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm outline-none focus:border-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Notes</label>
+                    <input type="text" id="edit-notes" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm outline-none focus:border-brand-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Link Draft / Dokumen</label>
+                    <input type="url" id="edit-doc-link" placeholder="https://docs.google.com/document/d/..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm outline-none focus:border-brand-500">
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">Batal</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-xs font-semibold text-white cursor-pointer">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. INDUK DATABASE AWAL (Kelompok & Kode Surat + Link Draft)
+        // =========================================================================
+        const DEFAULT_MASTER_GROUPS = [
+            { id: 'SK', name: 'SK (Surat Keputusan)', pattern: 'ADMIN', desc: 'Mutasi, Promosi, Probasi, Tetap, Demosi, PHK, Sanksi' },
+            { id: 'Sket', name: 'Sket (Surat Keterangan)', pattern: 'ADMIN', desc: 'Aktif Kerja, Masa Kerja, Magang, Referensi, Paklaring' },
+            { id: 'ST', name: 'ST (Surat Tugas)', pattern: 'ADMIN', desc: 'Penugasan & Perjalanan Dinas Karyawan' },
+            { id: 'SP', name: 'SP (Surat Peringatan)', pattern: 'ADMIN', desc: 'Surat Peringatan 1, 2, dan 3' },
+            { id: 'Umum', name: 'Surat Umum & Korespondensi', pattern: 'ADMIN', desc: 'Surat Edaran, Pengantar, Undangan, Surat Dinas' },
+            { id: 'Kontrak', name: 'Kontrak & Addendum', pattern: 'KONTRAK_KARYAWAN', desc: 'PK, PKWT, PKWTT, Addendum, SPK Freelance' }
+        ];
+
+        const DEFAULT_MASTER_CODES = [
+            { code: 'SK', category: 'SK', desc: 'Surat Keputusan (Umum)', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-LP', category: 'SK', desc: 'Surat Keputusan Kelulusan Probasi', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-PP', category: 'SK', desc: 'Surat Keputusan Perpanjang Probasi', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-KT', category: 'SK', desc: 'Surat Keputusan Pengangkatan Karyawan Tetap', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-MUT', category: 'SK', desc: 'Surat Keputusan Mutasi Karyawan', draftStatus: 'Done', draftUrl: 'https://docs.google.com/document/d/1E5daRB6yI3Z3ur9BAd3l30iBmlqguBmaJraM2KUv7gA/edit?usp=sharing', note: 'Link draft mutasi tersedia' },
+            { code: 'SK-ROT', category: 'SK', desc: 'Surat Keputusan Rotasi Karyawan', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-PRO', category: 'SK', desc: 'Surat Keputusan Promosi Jabatan', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-DEM', category: 'SK', desc: 'Surat Keputusan Demosi Jabatan', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-PHK', category: 'SK', desc: 'Surat Keputusan Pemutusan Hubungan Kerja (PHK)', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-SOP', category: 'SK', desc: 'Surat Keputusan Penetapan SOP', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-SAN', category: 'SK', desc: 'Surat Keputusan Sanksi / Pembinaan', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SK-PSA', category: 'SK', desc: 'Surat Keputusan Pencabutan Sanksi', draftStatus: 'Draft', draftUrl: '', note: '' },
+
+            { code: 'SKet', category: 'Sket', desc: 'Surat Keterangan (Umum)', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'Sket-MG', category: 'Sket', desc: 'Surat Keterangan Magang / Internship', draftStatus: 'Done', draftUrl: 'https://docs.google.com/document/d/1XIHfxN8tsMVZP34n7d9yUUlucaHxwCEZwPqZGnkOvGw/edit?usp=drive_link', note: 'Link draft penerimaan magang tersedia' },
+            { code: 'Sket-AK', category: 'Sket', desc: 'Surat Keterangan Aktif Bekerja', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'Sket-MK', category: 'Sket', desc: 'Surat Keterangan Masa Kerja', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'Sket-REF', category: 'Sket', desc: 'Surat Keterangan Referensi', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SKet-PK', category: 'Sket', desc: 'Surat Keterangan Pengalaman Kerja (Paklaring)', draftStatus: 'Done', draftUrl: 'https://docs.google.com/document/d/1Q8YVgIrVsgUZ5lyuDiCaDPG4_D0fKbM5WXnsWijK5Mo/edit?usp=drive_link', note: 'Link draft paklaring tersedia' },
+
+            { code: 'ST', category: 'ST', desc: 'Surat Tugas / Penugasan Karyawan', draftStatus: 'Done', draftUrl: 'https://docs.google.com/document/d/1Bopbq9Crna7e4_ERDLiSfoD24mbBaeNEdMTVnxKRja0/edit?usp=sharing', note: 'Link draft surat tugas tersedia' },
+
+            { code: 'SP-1', category: 'SP', desc: 'Surat Peringatan Pertama (SP-1)', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SP-2', category: 'SP', desc: 'Surat Peringatan Kedua (SP-2)', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SP-3', category: 'SP', desc: 'Surat Peringatan Ketiga (SP-3)', draftStatus: 'Draft', draftUrl: '', note: '' },
+
+            { code: 'S-PENG', category: 'Umum', desc: 'Surat Pengantar (Bank, BPJS, dll)', draftStatus: 'Draft', draftUrl: '', note: 'Catatan Masterlist: Biasanya format dari Finance' },
+            { code: 'SE', category: 'Umum', desc: 'Surat Edaran Internal', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'UND', category: 'Umum', desc: 'Surat Undangan Resmi', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SD', category: 'Umum', desc: 'Surat Dinas', draftStatus: 'Draft', draftUrl: '', note: '' },
+
+            { code: 'PKWT', category: 'Kontrak', desc: 'Perjanjian Kerja Waktu Tertentu', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'PKWTT', category: 'Kontrak', desc: 'Perjanjian Kerja Waktu Tidak Tertentu', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'PK', category: 'Kontrak', desc: 'Perjanjian Kerja', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'ADD-PK', category: 'Kontrak', desc: 'Addendum Perjanjian Kerja (Format Surat HR)', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'ADD', category: 'Kontrak', desc: 'Addendum Kontrak Karyawan', draftStatus: 'Draft', draftUrl: '', note: '' },
+            { code: 'SPK', category: 'Kontrak', desc: 'Surat Perjanjian Kerja (Freelance / Mitra)', draftStatus: 'Draft', draftUrl: '', note: '' }
+        ];
+
+        const DEFAULT_ENTITIES = [
+            'EVO', 'JAVAS', 'GOVE', 'ELMOO', 'R412', 'RWE', 'SEMESTA', 'SEMNET', 'BUMI', 'The Tribes'
+        ];
+
+        const DEFAULT_DIVISIONS = [
+            'HRD', 'GA', 'Finance', 'Media Strategic', 'Video Creative', 'Account', 'Operations', 'IT'
+        ];
+
+        const INITIAL_LOGS = [];
+
+        // =========================================================================
+        // 2. STATE MANAGEMENT (LocalStorage + Google Sheets Webhook)
+        // =========================================================================
+        let letterLogs = JSON.parse(localStorage.getItem('hrd_letter_logs_v3')) || INITIAL_LOGS;
+        let masterGroups = JSON.parse(localStorage.getItem('hrd_master_groups_v3')) || DEFAULT_MASTER_GROUPS;
+        let masterCodes = JSON.parse(localStorage.getItem('hrd_master_codes_v3')) || DEFAULT_MASTER_CODES;
+        let entitiesList = JSON.parse(localStorage.getItem('hrd_entities_v3')) || DEFAULT_ENTITIES;
+        let webhookUrl = localStorage.getItem('hrd_gsheets_webhook_url') || '';
+
+        function saveState() {
+            localStorage.setItem('hrd_letter_logs_v3', JSON.stringify(letterLogs));
+            localStorage.setItem('hrd_master_groups_v3', JSON.stringify(masterGroups));
+            localStorage.setItem('hrd_master_codes_v3', JSON.stringify(masterCodes));
+            localStorage.setItem('hrd_entities_v3', JSON.stringify(entitiesList));
+            refreshAllViews();
+        }
+
+        function updateSyncStatusUI() {
+            const pill = document.getElementById('header-sync-pill');
+            const statusBadge = document.getElementById('sync-connection-status');
+            const urlInput = document.getElementById('inp-webhook-url');
+
+            if (urlInput && !urlInput.value && webhookUrl) {
+                urlInput.value = webhookUrl;
+            }
+
+            if (webhookUrl) {
+                if (pill) {
+                    pill.textContent = 'Sheets Connected';
+                    pill.className = 'px-2 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full';
+                }
+                if (statusBadge) {
+                    statusBadge.textContent = 'Terhubung ke Sheets';
+                    statusBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800';
+                }
+            } else {
+                if (pill) {
+                    pill.textContent = 'Lokal / CSV';
+                    pill.className = 'px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 rounded-full';
+                }
+                if (statusBadge) {
+                    statusBadge.textContent = 'Belum Terhubung';
+                    statusBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700';
+                }
+            }
+        }
+
+        function saveWebhookUrl() {
+            const val = document.getElementById('inp-webhook-url').value.trim();
+            if (val && !val.startsWith('https://script.google.com/')) {
+                showToast('Pastikan URL berawal dari https://script.google.com/', 'error');
+                return;
+            }
+            webhookUrl = val;
+            localStorage.setItem('hrd_gsheets_webhook_url', webhookUrl);
+            updateSyncStatusUI();
+            showToast(webhookUrl ? 'URL Google Sheets berhasil disimpan!' : 'Koneksi Google Sheets dilepas');
+        }
+
+        async function pushLogToGoogleSheets(entry) {
+            if (!webhookUrl) return false;
+            try {
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(entry)
+                });
+                return true;
+            } catch (err) {
+                console.error('Gagal kirim ke Sheets:', err);
+                showToast('Tersimpan lokal, namun gagal mengirim ke Google Sheets', 'error');
+                return false;
+            }
+        }
+
+        async function syncFromGoogleSheets() {
+            if (!webhookUrl) {
+                showToast('Masukkan dulu URL Web App di tab Koneksi Sheets', 'error');
+                switchTab('sync');
+                return;
+            }
+            try {
+                showToast('Menarik data dari Google Sheets...');
+                const res = await fetch(webhookUrl);
+                const data = await res.json();
+                if (data.status === 'success' && Array.isArray(data.logs)) {
+                    const existingNumbers = new Set(letterLogs.map(l => l.fullNumber));
+                    let added = 0;
+                    data.logs.forEach(item => {
+                        if (item.fullNumber && !existingNumbers.has(item.fullNumber)) {
+                            letterLogs.push(item);
+                            existingNumbers.add(item.fullNumber);
+                            added++;
+                        }
+                    });
+                    saveState();
+                    calculateNextSequence();
+                    showToast(`Sinkronisasi selesai! ${added} data baru ditarik dari Sheets.`);
+                } else {
+                    showToast('Respon Sheets tidak valid', 'error');
+                }
+            } catch (err) {
+                showToast('Gagal menarik data. Cek izin akses Web App (Anyone).', 'error');
+            }
+        }
+
+        // =========================================================================
+        // 3. HELPER UTILITIES
+        // =========================================================================
+        const ROMAN_MONTHS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+
+        function getRomanMonth(dateStr) {
+            if (!dateStr) return 'I';
+            const parts = dateStr.split('-');
+            const monthIdx = parseInt(parts[1], 10) - 1;
+            return ROMAN_MONTHS[monthIdx] || 'I';
+        }
+
+        function getYearFromDate(dateStr) {
+            if (!dateStr) return 2027;
+            return parseInt(dateStr.split('-')[0], 10) || 2027;
+        }
+
+        function padSequence(num) {
+            const n = parseInt(num, 10) || 1;
+            return n < 10 ? '0' + n : String(n);
+        }
+
+        function copyTextToClipboard(text) {
+            if (!text) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast(`Tersalin: ${text.length > 35 ? text.slice(0, 35) + '...' : text}`);
+            } catch (err) {
+                showToast('Gagal menyalin teks', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+            toast.className = `pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-xs font-semibold text-white transition-all transform translate-y-2 opacity-0 ${
+                isError ? 'bg-rose-600' : 'bg-slate-900'
+            }`;
+            toast.innerHTML = `
+                <i data-lucide="${isError ? 'alert-circle' : 'check-circle-2'}" class="w-4 h-4 ${isError ? 'text-rose-200' : 'text-emerald-400'} shrink-0"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // =========================================================================
+        // 4. NAVIGATION & TAB SWITCHING
+        // =========================================================================
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-brand-600', 'shadow-sm', 'font-semibold');
+                btn.classList.add('text-slate-600', 'font-medium');
+            });
+
+            const activeView = document.getElementById(`view-${tabId}`);
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if (activeView) activeView.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-600', 'font-medium');
+                activeBtn.classList.add('bg-white', 'text-brand-600', 'shadow-sm', 'font-semibold');
+            }
+
+            if (tabId === 'register') renderRegisterTable();
+            if (tabId === 'masterlist') renderMasterlistTable();
+            if (tabId === 'sync') updateSyncStatusUI();
+            lucide.createIcons();
+        }
+
+        // =========================================================================
+        // 5. GENERATOR LOGIC & LIVE PREVIEW
+        // =========================================================================
+        function populateGroupDropdowns() {
+            const catSelect = document.getElementById('inp-category');
+            const filterCat = document.getElementById('filter-category');
+            const masterFilterCat = document.getElementById('master-filter-cat');
+            const newCodeCat = document.getElementById('new-code-cat');
+
+            const prevCat = catSelect ? catSelect.value : '';
+            const prevFilterCat = filterCat ? filterCat.value : 'ALL';
+            const prevMasterFilter = masterFilterCat ? masterFilterCat.value : 'ALL';
+
+            if (catSelect) {
+                catSelect.innerHTML = '';
+                masterGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    catSelect.appendChild(opt);
+                });
+                if (prevCat && masterGroups.some(g => g.id === prevCat)) {
+                    catSelect.value = prevCat;
+                }
+            }
+
+            if (filterCat) {
+                filterCat.innerHTML = '<option value="ALL">Semua Kelompok</option>';
+                masterGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    filterCat.appendChild(opt);
+                });
+                filterCat.value = prevFilterCat;
+            }
+
+            if (masterFilterCat) {
+                masterFilterCat.innerHTML = '<option value="ALL">Semua Kelompok</option>';
+                masterGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    masterFilterCat.appendChild(opt);
+                });
+                masterFilterCat.value = prevMasterFilter;
+            }
+
+            if (newCodeCat) {
+                newCodeCat.innerHTML = '';
+                masterGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.id;
+                    opt.textContent = g.name;
+                    newCodeCat.appendChild(opt);
+                });
+            }
+        }
+
+        function handlePatternChange() {
+            const pattern = document.querySelector('input[name="patternType"]:checked').value;
+            const wrapDiv = document.getElementById('wrap-division');
+            const wrapHold = document.getElementById('wrap-holding');
+            const wrapContractDates = document.getElementById('wrap-contract-dates');
+            const inpPrefix = document.getElementById('inp-prefix');
+            const inpCat = document.getElementById('inp-category');
+
+            if (pattern === 'ADMIN') {
+                wrapDiv.classList.remove('hidden');
+                wrapHold.classList.add('hidden');
+                wrapContractDates.classList.add('hidden');
+                wrapContractDates.classList.remove('grid');
+                if (inpCat.value === 'Kontrak' && masterGroups.length > 0) {
+                    inpCat.value = masterGroups[0].id;
+                }
+            } else if (pattern === 'KONTRAK_KARYAWAN') {
+                wrapDiv.classList.add('hidden');
+                wrapHold.classList.remove('hidden');
+                wrapContractDates.classList.remove('hidden');
+                wrapContractDates.classList.add('grid');
+                inpPrefix.value = 'A';
+                if (masterGroups.some(g => g.id === 'Kontrak')) inpCat.value = 'Kontrak';
+            } else if (pattern === 'KONTRAK_FREELANCE') {
+                wrapDiv.classList.remove('hidden');
+                wrapHold.classList.add('hidden');
+                wrapContractDates.classList.remove('hidden');
+                wrapContractDates.classList.add('grid');
+                inpPrefix.value = 'B';
+                if (masterGroups.some(g => g.id === 'Kontrak')) inpCat.value = 'Kontrak';
+            }
+
+            populateCodeDropdown();
+            calculateNextSequence();
+        }
+
+        function handleCategoryChange() {
+            const cat = document.getElementById('inp-category').value;
+            const groupObj = masterGroups.find(g => g.id === cat);
+            const currentPattern = document.querySelector('input[name="patternType"]:checked').value;
+
+            if (groupObj && groupObj.pattern && groupObj.pattern !== currentPattern) {
+                const targetRadio = document.querySelector(`input[name="patternType"][value="${groupObj.pattern}"]`);
+                if (targetRadio) {
+                    targetRadio.checked = true;
+                    handlePatternChange();
+                    return;
+                }
+            }
+
+            populateCodeDropdown();
+            calculateNextSequence();
+        }
+
+        function populateCodeDropdown() {
+            const pattern = document.querySelector('input[name="patternType"]:checked').value;
+            const cat = document.getElementById('inp-category').value;
+            const select = document.getElementById('inp-code');
+            select.innerHTML = '';
+
+            let filtered = masterCodes.filter(c => c.category === cat);
+            if (pattern === 'KONTRAK_FREELANCE') {
+                filtered = masterCodes.filter(c => c.code === 'SPK' || c.category === 'Kontrak');
+            }
+            if (filtered.length === 0) {
+                filtered = masterCodes;
+            }
+
+            filtered.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.code;
+                opt.textContent = `${item.code} — ${item.desc}`;
+                select.appendChild(opt);
+            });
+
+            if (pattern === 'KONTRAK_FREELANCE' && filtered.some(f => f.code === 'SPK')) {
+                select.value = 'SPK';
+            }
+
+            handleCodeSelection();
+        }
+
+        function handleCodeSelection() {
+            const codeVal = document.getElementById('inp-code').value;
+            const masterObj = masterCodes.find(c => c.code === codeVal);
+            const hintEl = document.getElementById('code-description-hint');
+            const draftDescEl = document.getElementById('draft-helper-desc');
+            const draftLinkEl = document.getElementById('draft-doc-link');
+            const draftPillEl = document.getElementById('draft-status-pill');
+
+            if (masterObj) {
+                hintEl.innerHTML = `<i data-lucide="info" class="w-3.5 h-3.5 text-brand-500 shrink-0"></i><span><strong>${masterObj.code}:</strong> ${masterObj.desc}</span>`;
+                if (masterObj.draftUrl) {
+                    draftDescEl.textContent = masterObj.note || `Link draft Google Docs untuk ${masterObj.desc} sudah tersimpan.`;
+                    draftPillEl.textContent = 'Ada Link Draft';
+                    draftPillEl.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+                    draftLinkEl.href = masterObj.draftUrl;
+                    draftLinkEl.classList.remove('hidden');
+                } else {
+                    draftDescEl.textContent = 'Belum ada link draft di Masterlist untuk kode ini. Kamu bisa tetap menempel link dokumen di kolom input.';
+                    draftPillEl.textContent = 'Tanpa Link';
+                    draftPillEl.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+                    draftLinkEl.classList.add('hidden');
+                }
+            }
+            calculateNextSequence();
+            lucide.createIcons();
+        }
+
+        function calculateNextSequence() {
+            const dateVal = document.getElementById('inp-date').value;
+            const year = getYearFromDate(dateVal);
+            const codeVal = document.getElementById('inp-code').value;
+
+            const matchingLogs = letterLogs.filter(log => {
+                return Number(log.year) === Number(year) && log.code === codeVal;
+            });
+
+            let maxSeq = 0;
+            matchingLogs.forEach(log => {
+                const n = parseInt(log.seq, 10);
+                if (!isNaN(n) && n > maxSeq) maxSeq = n;
+            });
+
+            document.getElementById('inp-seq').value = padSequence(maxSeq + 1);
+            updateGenerator();
+        }
+
+        function buildFormattedNumber() {
+            const pattern = document.querySelector('input[name="patternType"]:checked').value;
+            const prefix = document.getElementById('inp-prefix').value.trim() || 'A';
+            const seqRaw = document.getElementById('inp-seq').value.trim() || '01';
+            const seq = /^\d+$/.test(seqRaw) ? padSequence(seqRaw) : seqRaw;
+            const division = (document.getElementById('inp-division').value.trim() || 'HRD').toUpperCase();
+            const holding = (document.getElementById('inp-holding').value.trim() || 'RWE').toUpperCase();
+            const entity = document.getElementById('inp-entity').value.trim() || 'EVO';
+            const code = document.getElementById('inp-code').value.trim() || 'SK';
+            const dateVal = document.getElementById('inp-date').value;
+            const romanMonth = getRomanMonth(dateVal);
+            const year = getYearFromDate(dateVal);
+
+            if (pattern === 'KONTRAK_KARYAWAN') {
+                return `${prefix}.${seq}/${code}/${holding}/${entity}/${romanMonth}/${year}`;
+            } else if (pattern === 'KONTRAK_FREELANCE') {
+                return `${prefix}.${seq}/${code}/${entity}/${division}/${romanMonth}/${year}`;
+            } else {
+                return `${prefix}.${seq}/${division}/${entity}/${code}/${romanMonth}/${year}`;
+            }
+        }
+
+        function updateGenerator() {
+            const fullNum = buildFormattedNumber();
+            const dateVal = document.getElementById('inp-date').value;
+            const year = getYearFromDate(dateVal);
+            const roman = getRomanMonth(dateVal);
+            const code = document.getElementById('inp-code').value;
+            const seqRaw = document.getElementById('inp-seq').value.trim() || '01';
+            const seq = /^\d+$/.test(seqRaw) ? padSequence(seqRaw) : seqRaw;
+
+            document.getElementById('live-preview-number').textContent = fullNum;
+            document.getElementById('preview-year-badge').textContent = year;
+            document.getElementById('seg-roman').textContent = roman;
+            document.getElementById('seg-code').textContent = code;
+            document.getElementById('seg-seq').textContent = seq;
+
+            const isDuplicate = letterLogs.some(l => l.fullNumber.toLowerCase() === fullNum.toLowerCase());
+            const warnBox = document.getElementById('duplicate-warning');
+            if (isDuplicate) warnBox.classList.remove('hidden');
+            else warnBox.classList.add('hidden');
+        }
+
+        function createLogObjectFromForm() {
+            const patternType = document.querySelector('input[name="patternType"]:checked').value;
+            const prefix = document.getElementById('inp-prefix').value;
+            const seqRaw = document.getElementById('inp-seq').value.trim() || '01';
+            const seq = /^\d+$/.test(seqRaw) ? padSequence(seqRaw) : seqRaw;
+            const division = document.getElementById('inp-division').value.trim() || 'HRD';
+            const holding = document.getElementById('inp-holding').value.trim() || '';
+            const entity = document.getElementById('inp-entity').value.trim() || 'EVO';
+            const category = document.getElementById('inp-category').value;
+            const code = document.getElementById('inp-code').value;
+            const date = document.getElementById('inp-date').value;
+            const year = getYearFromDate(date);
+            const fullNumber = buildFormattedNumber();
+            const recipient = document.getElementById('inp-recipient').value.trim() || 'Karyawan';
+            const subject = document.getElementById('inp-subject').value.trim() || '-';
+            const startDate = document.getElementById('inp-start-date').value;
+            const endDate = document.getElementById('inp-end-date').value;
+            let notes = document.getElementById('inp-notes').value.trim();
+            const docUrlInput = document.getElementById('inp-doc-link').value.trim();
+            const masterObj = masterCodes.find(c => c.code === code);
+            const docUrl = docUrlInput || (masterObj ? masterObj.draftUrl : '') || '';
+
+            if (patternType !== 'ADMIN' && (startDate || endDate)) {
+                const periodInfo = `Periode: ${startDate || '?'} s/d ${endDate || '?'}`;
+                notes = notes ? `${periodInfo} | ${notes}` : periodInfo;
+            }
+
+            return {
+                id: 'log-' + Date.now(),
+                patternType, prefix, seq, division, holding, entity, category, code, date, year,
+                fullNumber, recipient, subject, notes, docUrl
+            };
+        }
+
+        async function handleSaveLetter(event) {
+            event.preventDefault();
+            const newEntry = createLogObjectFromForm();
+            letterLogs.unshift(newEntry);
+
+            if (newEntry.entity && !entitiesList.some(e => e.toLowerCase() === newEntry.entity.toLowerCase())) {
+                entitiesList.push(newEntry.entity);
+            }
+
+            saveState();
+            copyTextToClipboard(newEntry.fullNumber);
+
+            if (webhookUrl) {
+                await pushLogToGoogleSheets(newEntry);
+                showToast(`Nomor ${newEntry.fullNumber} disimpan & dikirim ke Google Sheets!`);
+            } else {
+                showToast(`Nomor ${newEntry.fullNumber} berhasil disimpan & disalin!`);
+            }
+
+            document.getElementById('inp-recipient').value = '';
+            document.getElementById('inp-subject').value = '';
+            document.getElementById('inp-notes').value = '';
+            document.getElementById('inp-doc-link').value = '';
+            calculateNextSequence();
+        }
+
+        function copyGeneratedNumber() {
+            const num = document.getElementById('live-preview-number').textContent;
+            copyTextToClipboard(num);
+        }
+
+        function resetFormToDefaults() {
+            document.querySelector('input[name="patternType"][value="ADMIN"]').checked = true;
+            document.getElementById('inp-prefix').value = 'A';
+            if (masterGroups.length > 0) document.getElementById('inp-category').value = masterGroups[0].id;
+            document.getElementById('inp-division').value = 'HRD';
+            document.getElementById('inp-entity').value = 'EVO';
+            document.getElementById('inp-date').value = '2027-01-04';
+            document.getElementById('inp-recipient').value = '';
+            document.getElementById('inp-subject').value = '';
+            document.getElementById('inp-notes').value = '';
+            document.getElementById('inp-doc-link').value = '';
+            handlePatternChange();
+            showToast('Form dikembalikan ke pengaturan awal 2027');
+        }
+
+        // =========================================================================
+        // 6. BUKU REGISTER TABLE, FILTER, EDIT, DELETE & CSV IMPORT/EXPORT
+        // =========================================================================
+        function renderRegisterTable() {
+            const tbody = document.getElementById('register-table-body');
+            const emptyState = document.getElementById('register-empty-state');
+            const search = document.getElementById('filter-search').value.toLowerCase().trim();
+            const yearFilter = document.getElementById('filter-year').value;
+            const catFilter = document.getElementById('filter-category').value;
+            const prefixFilter = document.getElementById('filter-prefix').value;
+            const entityFilter = document.getElementById('filter-entity').value;
+
+            const filtered = letterLogs.filter(item => {
+                if (yearFilter !== 'ALL' && String(item.year) !== yearFilter) return false;
+                if (catFilter !== 'ALL' && item.category !== catFilter) return false;
+                if (prefixFilter !== 'ALL' && item.prefix !== prefixFilter) return false;
+                if (entityFilter !== 'ALL' && item.entity.toLowerCase() !== entityFilter.toLowerCase()) return false;
+                if (search) {
+                    const hay = `${item.fullNumber} ${item.recipient} ${item.subject} ${item.entity} ${item.code} ${item.notes}`.toLowerCase();
+                    if (!hay.includes(search)) return false;
+                }
+                return true;
+            });
+
+            tbody.innerHTML = '';
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/90 transition-colors';
+                const badgeColor = item.prefix === 'B'
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-brand-50 text-brand-700 border-brand-200';
+
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <span class="px-1.5 py-0.5 text-[10px] font-bold rounded border ${badgeColor}">${item.prefix}</span>
+                            <code class="font-mono text-xs sm:text-sm font-bold text-slate-900">${item.fullNumber}</code>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 whitespace-nowrap text-xs text-slate-600">${item.date || '-'}</td>
+                    <td class="py-3.5 px-4 whitespace-nowrap">
+                        <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-xs font-semibold">${item.code}</span>
+                        <span class="text-[11px] text-slate-400 ml-1">${item.category}</span>
+                    </td>
+                    <td class="py-3.5 px-4 whitespace-nowrap">
+                        <span class="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 text-xs font-semibold">${item.entity}</span>
+                    </td>
+                    <td class="py-3.5 px-4 font-semibold text-slate-800">${item.recipient}</td>
+                    <td class="py-3.5 px-4 text-slate-600 max-w-xs">
+                        <div class="truncate" title="${item.subject}">${item.subject}</div>
+                        ${item.notes ? `<div class="text-[11px] text-slate-400 truncate">${item.notes}</div>` : ''}
+                    </td>
+                    <td class="py-3.5 px-4 whitespace-nowrap text-right">
+                        <div class="inline-flex items-center gap-1">
+                            ${item.docUrl ? `<a href="${item.docUrl}" target="_blank" rel="noopener noreferrer" title="Buka Link Draft / Dokumen" class="px-2 py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 text-[11px] font-semibold inline-flex items-center gap-1"><i data-lucide="external-link" class="w-3.5 h-3.5"></i><span>Draft</span></a>` : ''}
+                            <button type="button" onclick="copyTextToClipboard('${item.fullNumber}')" title="Salin Nomor" class="p-1.5 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <button type="button" onclick="openEditModal('${item.id}')" title="Edit Catatan" class="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                            <button type="button" onclick="deleteLetterLog('${item.id}')" title="Hapus" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function openEditModal(id) {
+            const item = letterLogs.find(l => l.id === id);
+            if (!item) return;
+            document.getElementById('edit-id').value = item.id;
+            document.getElementById('edit-fullNumber').value = item.fullNumber;
+            document.getElementById('edit-date').value = item.date;
+            document.getElementById('edit-entity').value = item.entity;
+            document.getElementById('edit-recipient').value = item.recipient;
+            document.getElementById('edit-subject').value = item.subject;
+            document.getElementById('edit-notes').value = item.notes || '';
+            document.getElementById('edit-doc-link').value = item.docUrl || '';
+            document.getElementById('edit-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+        }
+
+        function handleUpdateLetter(event) {
+            event.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const idx = letterLogs.findIndex(l => l.id === id);
+            if (idx === -1) return;
+
+            const newDate = document.getElementById('edit-date').value;
+            letterLogs[idx].fullNumber = document.getElementById('edit-fullNumber').value.trim();
+            letterLogs[idx].date = newDate;
+            letterLogs[idx].year = getYearFromDate(newDate);
+            letterLogs[idx].entity = document.getElementById('edit-entity').value.trim();
+            letterLogs[idx].recipient = document.getElementById('edit-recipient').value.trim();
+            letterLogs[idx].subject = document.getElementById('edit-subject').value.trim();
+            letterLogs[idx].notes = document.getElementById('edit-notes').value.trim();
+            letterLogs[idx].docUrl = document.getElementById('edit-doc-link').value.trim();
+
+            saveState();
+            closeEditModal();
+            showToast('Catatan surat berhasil diperbarui');
+        }
+
+        function deleteLetterLog(id) {
+            letterLogs = letterLogs.filter(l => l.id !== id);
+            saveState();
+            calculateNextSequence();
+            showToast('Catatan surat dihapus');
+        }
+
+        function exportToCSV() {
+            const headers = ['Nomor Surat', 'Tanggal Surat', 'Tahun', 'Kode Awal', 'Kelompok', 'Kode Jenis', 'Divisi', 'Entitas', 'Nama Penerima', 'Keterangan / Perihal', 'Notes', 'Link Draft'];
+            const rows = letterLogs.map(item => [
+                item.fullNumber, item.date, item.year, item.prefix, item.category,
+                item.code, item.division, item.entity, item.recipient, item.subject, item.notes || '', item.docUrl || ''
+            ]);
+
+            const csvContent = [headers, ...rows]
+                .map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+                .join('\n');
+
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Register_Nomor_Surat_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('File CSV berhasil diunduh!');
+        }
+
+        function handleImportCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+                if (lines.length < 2) {
+                    showToast('File CSV kosong atau format tidak sesuai', 'error');
+                    return;
+                }
+                let importedCount = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g, '').trim());
+                    if (cols.length >= 2 && cols[0]) {
+                        const fullNum = cols[0];
+                        if (!letterLogs.some(l => l.fullNumber === fullNum)) {
+                            const parts = fullNum.split('/');
+                            const prefixPart = (parts[0] || 'A.01').split('.');
+                            letterLogs.push({
+                                id: 'imp-' + Date.now() + '-' + i,
+                                patternType: 'ADMIN',
+                                prefix: prefixPart[0] || 'A',
+                                seq: prefixPart[1] || '01',
+                                division: parts[1] || 'HRD',
+                                holding: '',
+                                entity: cols[7] || parts[2] || 'EVO',
+                                category: cols[4] || 'SK',
+                                code: cols[5] || parts[3] || 'SK',
+                                date: cols[1] || '2026-01-01',
+                                year: parseInt(cols[2], 10) || 2026,
+                                fullNumber: fullNum,
+                                recipient: cols[8] || '-',
+                                subject: cols[9] || '-',
+                                notes: cols[10] || 'Imported CSV',
+                                docUrl: cols[11] || ''
+                            });
+                            importedCount++;
+                        }
+                    }
+                }
+                saveState();
+                showToast(`Berhasil mengimpor ${importedCount} nomor surat baru!`);
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // =========================================================================
+        // 7. MASTERLIST, KELOMPOK BARU & ENTITAS MANAGEMENT
+        // =========================================================================
+        function renderMasterGroupsGrid() {
+            const grid = document.getElementById('master-groups-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            masterGroups.forEach(g => {
+                const codeCount = masterCodes.filter(c => c.category === g.id).length;
+                const isDefault = DEFAULT_MASTER_GROUPS.some(dg => dg.id === g.id);
+                const card = document.createElement('div');
+                card.className = 'p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between gap-2';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-mono text-xs font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">${g.id}</span>
+                            <span class="text-[11px] font-semibold text-slate-500">${codeCount} kode</span>
+                        </div>
+                        <div class="text-xs font-bold text-slate-900 mt-1.5">${g.name}</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5 line-clamp-2">${g.desc || 'Kelompok surat khusus'}</div>
+                    </div>
+                    ${!isDefault ? `
+                        <div class="pt-1 border-t border-slate-200/70 flex justify-end">
+                            <button type="button" onclick="deleteMasterGroup('${g.id}')" class="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer">Hapus Kelompok</button>
+                        </div>
+                    ` : ''}
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function handleAddMasterGroup(event) {
+            event.preventDefault();
+            const idRaw = document.getElementById('new-group-id').value.trim();
+            const nameRaw = document.getElementById('new-group-name').value.trim();
+            const patternRaw = document.getElementById('new-group-pattern').value;
+
+            if (!idRaw || !nameRaw) return;
+            if (masterGroups.some(g => g.id.toLowerCase() === idRaw.toLowerCase())) {
+                showToast(`Kode kelompok "${idRaw}" sudah ada!`, 'error');
+                return;
+            }
+
+            masterGroups.push({
+                id: idRaw,
+                name: `${idRaw} (${nameRaw})`,
+                pattern: patternRaw,
+                desc: `Kelompok ${nameRaw}`
+            });
+
+            if (!masterCodes.some(c => c.code.toLowerCase() === idRaw.toLowerCase())) {
+                masterCodes.push({
+                    code: idRaw,
+                    category: idRaw,
+                    desc: `${nameRaw} (Umum)`,
+                    draftStatus: 'Draft',
+                    draftUrl: '',
+                    note: 'Kelompok baru'
+                });
+            }
+
+            document.getElementById('new-group-id').value = '';
+            document.getElementById('new-group-name').value = '';
+            saveState();
+            populateCodeDropdown();
+            showToast(`Kelompok baru "${idRaw}" berhasil ditambahkan!`);
+        }
+
+        function deleteMasterGroup(groupId) {
+            masterGroups = masterGroups.filter(g => g.id !== groupId);
+            saveState();
+            populateCodeDropdown();
+            showToast(`Kelompok ${groupId} dihapus`);
+        }
+
+        function renderMasterlistTable() {
+            renderMasterGroupsGrid();
+            const tbody = document.getElementById('masterlist-table-body');
+            const filterCat = document.getElementById('master-filter-cat').value;
+            tbody.innerHTML = '';
+
+            const filtered = masterCodes.filter(c => filterCat === 'ALL' || c.category === filterCat);
+
+            filtered.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                const linkBadge = item.draftUrl
+                    ? `<a href="${item.draftUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1 hover:bg-emerald-100"><i data-lucide="external-link" class="w-3 h-3"></i><span>Buka Link</span></a>`
+                    : `<span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-semibold">Belum ada link</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-brand-700 whitespace-nowrap">${item.code}</td>
+                    <td class="py-3 px-4 whitespace-nowrap"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-xs font-semibold">${item.category}</span></td>
+                    <td class="py-3 px-4 text-slate-800">
+                        <div class="font-medium">${item.desc}</div>
+                        ${item.note ? `<div class="text-[11px] text-slate-400">${item.note}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 whitespace-nowrap">${linkBadge}</td>
+                    <td class="py-3 px-4 text-right whitespace-nowrap">
+                        <div class="inline-flex items-center gap-1.5">
+                            <button type="button" onclick="editMasterDraftLink('${item.code}')" class="px-2 py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer">
+                                <i data-lucide="link" class="w-3 h-3"></i>
+                                <span>Atur Link</span>
+                            </button>
+                            <button type="button" onclick="deleteMasterCode('${item.code}')" title="Hapus Kode" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        function editMasterDraftLink(code) {
+            const idx = masterCodes.findIndex(c => c.code === code);
+            if (idx === -1) return;
+            const currentUrl = masterCodes[idx].draftUrl || '';
+            const manualInput = document.getElementById('new-code-link');
+            if (manualInput) {
+                manualInput.value = currentUrl;
+                manualInput.focus();
+            }
+            masterCodes[idx].draftStatus = currentUrl ? 'Done' : 'Draft';
+            saveState();
+            handleCodeSelection();
+            showToast(`Tempel link baru di kolom Link Draft lalu klik Simpan Kode untuk memperbarui ${code}.`);
+        }
+
+        function handleAddMasterCode(event) {
+            event.preventDefault();
+            const codeKey = document.getElementById('new-code-key').value.trim();
+            const codeCat = document.getElementById('new-code-cat').value;
+            const codeDesc = document.getElementById('new-code-desc').value.trim();
+            const codeLink = document.getElementById('new-code-link').value.trim();
+
+            if (!codeKey || !codeDesc) return;
+
+            const existingIdx = masterCodes.findIndex(c => c.code.toLowerCase() === codeKey.toLowerCase());
+            if (existingIdx !== -1) {
+                masterCodes[existingIdx].category = codeCat;
+                masterCodes[existingIdx].desc = codeDesc;
+                masterCodes[existingIdx].draftUrl = codeLink;
+                masterCodes[existingIdx].draftStatus = codeLink ? 'Done' : 'Draft';
+                showToast(`Kode ${codeKey} berhasil diperbarui!`);
+            } else {
+                masterCodes.push({
+                    code: codeKey,
+                    category: codeCat,
+                    desc: codeDesc,
+                    draftStatus: codeLink ? 'Done' : 'Draft',
+                    draftUrl: codeLink,
+                    note: 'Ditambahkan manual'
+                });
+                showToast(`Kode ${codeKey} berhasil ditambahkan ke Masterlist!`);
+            }
+
+            document.getElementById('new-code-key').value = '';
+            document.getElementById('new-code-desc').value = '';
+            document.getElementById('new-code-link').value = '';
+            saveState();
+            populateCodeDropdown();
+        }
+
+        function deleteMasterCode(code) {
+            masterCodes = masterCodes.filter(c => c.code !== code);
+            saveState();
+            populateCodeDropdown();
+            showToast(`Kode ${code} dihapus dari Masterlist`);
+        }
+
+        function handleAddEntity(event) {
+            event.preventDefault();
+            const inp = document.getElementById('new-entity-name');
+            const val = inp.value.trim();
+            if (!val) return;
+            if (!entitiesList.some(e => e.toLowerCase() === val.toLowerCase())) {
+                entitiesList.push(val);
+                saveState();
+                showToast(`Entitas ${val} ditambahkan`);
+            }
+            inp.value = '';
+        }
+
+        function removeEntity(name) {
+            entitiesList = entitiesList.filter(e => e !== name);
+            saveState();
+        }
+
+        function copyAppsScript() {
+            const code = document.getElementById('apps-script-code').textContent;
+            copyTextToClipboard(code);
+        }
+
+        function resetToInitialSeedData() {
+            letterLogs = JSON.parse(JSON.stringify(INITIAL_LOGS));
+            masterGroups = JSON.parse(JSON.stringify(DEFAULT_MASTER_GROUPS));
+            masterCodes = JSON.parse(JSON.stringify(DEFAULT_MASTER_CODES));
+            entitiesList = JSON.parse(JSON.stringify(DEFAULT_ENTITIES));
+            saveState();
+            populateCodeDropdown();
+            calculateNextSequence();
+            showToast('Log surat dikosongkan, siap mulai dari 2027!');
+        }
+
+        // =========================================================================
+        // 8. REFRESH UI & INITIALIZATION
+        // =========================================================================
+        function refreshAllViews() {
+            populateGroupDropdowns();
+            updateSyncStatusUI();
+
+            const total = letterLogs.length;
+            const count2027 = letterLogs.filter(l => Number(l.year) === 2027).length;
+            const count2026 = letterLogs.filter(l => Number(l.year) === 2026).length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-2027').textContent = count2027;
+            document.getElementById('stat-2026').textContent = count2026;
+            document.getElementById('stat-codes').textContent = masterCodes.length;
+            document.getElementById('badge-total-surat').textContent = total;
+
+            const miniList = document.getElementById('mini-recent-list');
+            miniList.innerHTML = '';
+            letterLogs.slice(0, 3).forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'p-2.5 rounded-xl bg-slate-50 border border-slate-200/70 flex items-center justify-between gap-2';
+                div.innerHTML = `
+                    <div class="min-w-0">
+                        <code class="text-xs font-mono font-bold text-slate-900 block truncate">${item.fullNumber}</code>
+                        <div class="text-[11px] text-slate-500 truncate">${item.recipient} • ${item.subject}</div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        ${item.docUrl ? `<a href="${item.docUrl}" target="_blank" rel="noopener noreferrer" title="Buka Link Draft" class="p-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100"><i data-lucide="external-link" class="w-3.5 h-3.5"></i></a>` : ''}
+                        <button type="button" onclick="copyTextToClipboard('${item.fullNumber}')" title="Salin" class="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:text-brand-600 cursor-pointer">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+                miniList.appendChild(div);
+            });
+
+            const entDatalist = document.getElementById('list-entities');
+            const filterEnt = document.getElementById('filter-entity');
+            const entTags = document.getElementById('entity-tags-container');
+            const currentFilterEnt = filterEnt.value;
+
+            entDatalist.innerHTML = '';
+            filterEnt.innerHTML = '<option value="ALL">Semua Entitas</option>';
+            entTags.innerHTML = '';
+
+            entitiesList.forEach(ent => {
+                const opt1 = document.createElement('option');
+                opt1.value = ent;
+                entDatalist.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = ent;
+                opt2.textContent = ent;
+                filterEnt.appendChild(opt2);
+
+                const tag = document.createElement('span');
+                tag.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold';
+                tag.innerHTML = `${ent} <button type="button" onclick="removeEntity('${ent}')" class="text-slate-400 hover:text-rose-600 ml-0.5 cursor-pointer">&times;</button>`;
+                entTags.appendChild(tag);
+            });
+            filterEnt.value = currentFilterEnt;
+
+            const divDatalist = document.getElementById('list-divisions');
+            divDatalist.innerHTML = '';
+            DEFAULT_DIVISIONS.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                divDatalist.appendChild(opt);
+            });
+
+            renderRegisterTable();
+            renderMasterlistTable();
+            lucide.createIcons();
+        }
+
+        window.onload = function() {
+            document.getElementById('inp-date').value = '2027-01-04';
+            populateGroupDropdowns();
+            populateCodeDropdown();
+            refreshAllViews();
+            calculateNextSequence();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
